@@ -14,6 +14,11 @@ type Wave = Vec<Pulse>;
 const MIDDLE_A: Hz = 432.0;
 const SAMPLE_RATE: f32 = 48000.0;
 const VOLUME: f32 = 1.0;
+const DURATION_SCALE: f32 = 88.0;
+
+fn scale_pitch(diff: f32) -> f32 {
+    MIDDLE_A * (2.0_f32.powf(1.0 / 12.0)).powf(diff / 2.0)
+}
 
 fn dedup(source: &mut Vec<char>) {
     let mut uniques = HashSet::new();
@@ -47,7 +52,7 @@ fn construct_frequencies(source_code: &str) -> HashMap<char, Hz> {
         characters
             .into_iter()
             .enumerate()
-            .map(|(i, e)| (e, (i as Hz * 10.0) + MIDDLE_A))
+            .map(|(i, e)| (e, scale_pitch(i as Hz)))
             .collect::<Vec<(char, Hz)>>(),
     );
 
@@ -62,7 +67,7 @@ fn calculate_averages(source_code: &str, mapping: HashMap<char, f32>) -> Vec<(Hz
         .map(|l| {
             (
                 l.iter().map(|c| mapping[&c]).sum::<f32>() / l.len() as Hz,
-                l.len() as Seconds / 88.0,
+                l.len() as Seconds / DURATION_SCALE,
             )
         })
         .collect()
