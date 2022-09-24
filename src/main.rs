@@ -14,4 +14,5 @@ fn main() {
     };
 
     soundify::write_to_file(converted).unwrap();
+    soundify::play("./output.bin");
 }

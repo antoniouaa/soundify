@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::f32::consts::PI;
 use std::fs;
 use std::io::Error;
+use std::process::Command;
 
 // Usage:
 // & "C:\Program Files\ffmpeg\bin\ffplay.exe" -showmode 1 -f f32le -ar 48000 .\output.bin
@@ -95,4 +96,16 @@ pub fn write_to_file(converted: Vec<Hz>) -> Result<(), Error> {
         .collect();
     fs::write("output.bin", out)?;
     Ok(())
+}
+
+pub fn play(filename: &str) {
+    // -showmode 1 -f f32le -ar 48000 .\output.bin
+    Command::new("ffplay")
+        .arg("-autoexit")
+        .args(["-showmode", "1"])
+        .args(["-f", "f32le"])
+        .args(["-ar", "48000"])
+        .arg(filename)
+        .spawn()
+        .expect("Couldn't play file!");
 }
