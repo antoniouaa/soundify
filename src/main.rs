@@ -15,4 +15,13 @@ fn main() {
 
     soundify::write_to_file(converted).unwrap();
     soundify::play("./output.bin");
+
+    // let envl = soundify::Envelope(2.5, 2.5, 80., 15.);
+    // let rand: Vec<f32> = vec![
+    //     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    //     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    // ];
+
+    // let conv = soundify::apply_envelope(rand, &envl);
+    // println!("Converted {:?}", &conv);
 }

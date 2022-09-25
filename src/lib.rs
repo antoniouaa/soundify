@@ -10,12 +10,14 @@ use std::process::Command;
 type Hz = f32;
 type Seconds = f32;
 type Pulse = f32;
-type Wave = Vec<Pulse>;
+pub type Wave = Vec<Pulse>;
 
 const MIDDLE_A: Hz = 432.0;
 const SAMPLE_RATE: f32 = 48000.0;
 const VOLUME: f32 = 1.0;
 const DURATION_SCALE: f32 = 88.0;
+
+pub struct Envelope(pub f32, pub f32, pub f32, pub f32);
 
 fn scale_pitch(diff: f32) -> f32 {
     MIDDLE_A * (2.0_f32.powf(1.0 / 12.0)).powf(diff / 2.0)
@@ -36,12 +38,52 @@ fn clean_source(source_code: &str) -> Vec<char> {
 
 fn generate_wave(frequency: Hz, duration: Seconds) -> Wave {
     let step = (frequency * 2.0 * PI) / SAMPLE_RATE;
+    let sample_rate = SAMPLE_RATE * duration.max(0.2) * 2.0;
 
-    (0..(SAMPLE_RATE * duration) as u32)
+    (0..sample_rate as u32)
         .map(|sample| sample as f32 * step)
         .map(|sample| sample.sin())
         .map(|sample| sample * VOLUME)
         .collect()
+}
+
+fn scale_ampl(pos: f32, ampl: f32, envelope: &Envelope) -> f32 {
+    let mut scaled = 0.0;
+    if pos < envelope.0 {
+        scaled = ampl * pos / 100.0;
+    } else if envelope.0 < pos && pos < envelope.0 + envelope.1 {
+        scaled = ampl * 0.7_f32.max((envelope.0 + envelope.1 - pos) / 100.0);
+    } else if envelope.0 + envelope.1 < pos && pos < envelope.2 {
+        scaled = ampl * 0.7;
+    } else {
+        scaled = ampl * (100.0 - pos) / 100.0;
+    }
+
+    VOLUME.min(scaled)
+}
+
+pub fn apply_envelope(wave: Wave, envelope: &Envelope) -> Wave {
+    wave.clone()
+        .into_iter()
+        .enumerate()
+        .map(|(i, ampl)| scale_ampl((i * 100 / wave.len()) as f32, ampl, &envelope))
+        .collect()
+}
+
+pub fn convert(source_code: &str) -> Vec<Hz> {
+    let envelope = Envelope(5.0, 5.0, 80.0, 10.0);
+    let letter_map = construct_frequencies(source_code);
+    let line_averages = calculate_averages(source_code, letter_map);
+
+    let waves: Vec<Hz> = line_averages
+        .clone()
+        .into_iter()
+        .map(|(c, l)| generate_wave(c, l))
+        .map(|wave| apply_envelope(wave, &envelope))
+        .flatten()
+        .collect();
+
+    waves
 }
 
 fn construct_frequencies(source_code: &str) -> HashMap<char, Hz> {
@@ -74,20 +116,6 @@ fn calculate_averages(source_code: &str, mapping: HashMap<char, f32>) -> Vec<(Hz
         .collect()
 }
 
-pub fn convert(source_code: &str) -> Vec<Hz> {
-    let letter_map = construct_frequencies(source_code);
-    let line_averages = calculate_averages(source_code, letter_map);
-
-    let waves: Vec<Hz> = line_averages
-        .clone()
-        .into_iter()
-        .map(|(c, l)| generate_wave(c, l))
-        .flatten()
-        .collect();
-
-    waves
-}
-
 pub fn write_to_file(converted: Vec<Hz>) -> Result<(), Error> {
     let out: Vec<u8> = converted
         .iter()
@@ -99,7 +127,6 @@ pub fn write_to_file(converted: Vec<Hz>) -> Result<(), Error> {
 }
 
 pub fn play(filename: &str) {
-    // -showmode 1 -f f32le -ar 48000 .\output.bin
     Command::new("ffplay")
         .arg("-autoexit")
         .args(["-showmode", "1"])
